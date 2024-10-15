@@ -1,100 +1,67 @@
-// // import * as auth from "../../api/auth/index.js";
-// import { loginListener } from "../../ui/auth.js";
-// import { updateLoginVisibility } from "../../ui/auth.js";
-// import { load } from "../../storage/index.js";
+import { login } from "../src/js/api/auth/login";
+import { logout } from "../src/js/api/auth/logout";
+import { save } from "../src/js/storage/save";
+import { remove } from "../src/js/storage/remove";
 
-// jest.mock("../../api/auth/index.js", () => ({
-//     login: jest.fn(),
-// }));
+// Mock localStorage
+global.localStorage = {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+};
 
-// jest.mock("../../storage/index.js", () => ({
-//     load: jest.fn(),
-// }));
+// Mock fetch
+global.fetch = jest.fn();
 
-// // Mock localStorage
-// beforeAll(() => {
-//     global.localStorage = {
-//         setItem: jest.fn(),
-//         getItem: jest.fn(),
-//         clear: jest.fn(),
-//     };
-// });
+jest.mock("../src/js/storage/save", () => ({
+    save: jest.fn(),
+}));
 
-// describe("loginListener", () => {
-//     beforeEach(() => {
-//         jest.clearAllMocks(); // Clear mock data before each test
-//     });
+jest.mock("../src/js/storage/remove", () => ({
+    remove: jest.fn(),
+}));
 
-//     it("should call login and store a token with valid credentials", async () => {
-//         // Arrange
-//         const mockEvent = {
-//             preventDefault: jest.fn(),
-//             target: {
-//                 elements: [
-//                     { name: "email", value: "test@example.com" },
-//                     { name: "password", value: "validpassword" },
-//                 ],
-//                 get: (name) =>
-//                     name === "email" ? "test@example.com" : "validpassword",
-//             },
-//         };
+describe("Authentication functions", () => {
+    beforeEach(() => {
+        localStorage.clear();
+        jest.clearAllMocks();
+    });
 
-//         // Mock the auth.login function to return a simulated user with a token
-//         const mockToken = "validToken123";
-//         auth.login.mockResolvedValue({ name: "John Doe", token: mockToken });
+    describe("login function", () => {
+        it("should store the token in localStorage when login is successful", async () => {
+            const mockToken = "mockAccessToken";
 
-//         // Act
-//         await loginListener(mockEvent);
+            // Mock fetch response
+            fetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ accessToken: mockToken }),
+            });
 
-//         // Assert
-//         expect(auth.login).toHaveBeenCalledWith(
-//             "test@example.com",
-//             "validpassword"
-//         );
-//         expect(localStorage.setItem).toHaveBeenCalledWith("token", mockToken);
-//     });
+            // Call the login function
+            await login("test@example.com", "password123");
 
-//     it("should update login visibility based on token presence", () => {
-//         // Arrange
-//         load.mockReturnValue("validToken123"); // Simulate a valid token is loaded
-//         document.body.classList.add = jest.fn();
-//         document.body.classList.remove = jest.fn();
+            expect(save).toHaveBeenCalledWith("token", mockToken);
+        });
 
-//         // Act
-//         updateLoginVisibility();
+        it("should throw an error when login fails", async () => {
+            fetch.mockResolvedValueOnce({
+                ok: false,
+                statusText: "Unauthorized",
+            });
 
-//         // Assert
-//         expect(document.body.classList.add).toHaveBeenCalledWith("logged-in");
-//     });
+            await expect(
+                login("test@example.com", "wrongpassword")
+            ).rejects.toThrow("Unauthorized");
+        });
+    });
 
-//     it("should show alert when login fails", async () => {
-//         // Arrange
-//         const mockEvent = {
-//             preventDefault: jest.fn(),
-//             target: {
-//                 elements: [
-//                     { name: "email", value: "chrber01279@stud.noroff.no" },
-//                     { name: "password", value: "randompassword" },
-//                 ],
-//                 get: (name) =>
-//                     name === "email"
-//                         ? "chrber01279@stud.noroff.no"
-//                         : "randompassword",
-//             },
-//         };
+    describe("logout function", () => {
+        it("Clears the token and profile from localStorage", () => {
+            logout();
 
-//         // Mock auth.login to throw an error when the login fails
-//         auth.login.mockRejectedValue(new Error("Login failed"));
-
-//         // Mock window.alert
-//         global.alert = jest.fn();
-
-//         // Act
-//         await loginListener(mockEvent);
-
-//         // Assert
-//         expect(alert).toHaveBeenCalledWith(
-//             "Either your username was not found or your password is incorrect"
-//         );
-//     });
-// });
+            expect(remove).toHaveBeenCalledWith("token");
+            expect(remove).toHaveBeenCalledWith("profile");
+        });
+    });
+});
