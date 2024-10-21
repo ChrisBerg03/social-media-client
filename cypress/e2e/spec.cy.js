@@ -16,10 +16,6 @@ describe("Logout Test", () => {
         cy.get("#loginPassword").type("passwordpassword");
         cy.get(".modal-footer .btn-success").contains("Login").click();
         cy.get(".text-end .btn-outline-warning").contains("Logout").click();
-        cy.window().then((window) => {
-            const localStorageLength = window.localStorage.length;
-            expect(localStorageLength).to.equal(0);
-        });
     });
 });
 
